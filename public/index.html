@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vibe Coding — UTM CEE Guest Lecture</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #f59e0b;
+      --ok: #22c55e;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    main { max-width: 900px; margin: 0 auto; padding: 48px 20px 80px; }
+    .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: .8rem; }
+    h1 { font-size: clamp(2rem, 5vw, 3.2rem); margin: 8px 0 12px; line-height: 1.15; }
+    .lead { color: var(--muted); font-size: 1.15rem; max-width: 640px; }
+    .meta { margin-top: 20px; color: var(--muted); font-size: .95rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 40px; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .card h2 { font-size: 1.05rem; margin: 0 0 8px; }
+    .card p { margin: 0; color: var(--muted); font-size: .95rem; }
+    .step { display: inline-block; color: var(--accent); font-weight: 700; margin-right: 6px; }
+    .status {
+      margin-top: 40px;
+      padding: 14px 18px;
+      border-radius: 10px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: .9rem;
+    }
+    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); margin-right: 8px; }
+    .dot.ok { background: var(--ok); }
+    footer { margin-top: 56px; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--border); padding-top: 20px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">UTM · Centre for Engineering Education · 21 Sep 2026</div>
+    <h1>Vibe coding is a new way of making things</h1>
+    <p class="lead">
+      AI builds. People decide, and examine.<br>
+      This site is built live during the lecture with Claude Code, GitHub and Cloudflare.
+    </p>
+    <div class="meta">Naoki Ohshima — Yamaguchi University, Graduate School of Technology Management / Visiting Professor, MJIIT-UTM</div>
+
+    <div class="grid">
+      <div class="card">
+        <h2><span class="step">0</span>Website</h2>
+        <p>Static site + API on Cloudflare Workers. Every <code>git push</code> redeploys.</p>
+      </div>
+      <div class="card">
+        <h2><span class="step">1</span>Voice AI chat</h2>
+        <p>Talk to an AI assistant with your voice. Coming up during the lecture.</p>
+      </div>
+      <div class="card">
+        <h2><span class="step">2</span>Rubric builder</h2>
+        <p>Design an assessment rubric with AI assistance.</p>
+      </div>
+      <div class="card">
+        <h2><span class="step">3</span>Rubric-based grading</h2>
+        <p>Submit, grade against the rubric, and return feedback.</p>
+      </div>
+    </div>
+
+    <div class="status" id="status">
+      <span class="dot" id="dot"></span><span id="status-text">Checking API…</span>
+    </div>
+
+    <footer>
+      Built with Claude Code → GitHub → Cloudflare Workers.
+    </footer>
+  </main>
+
+  <script>
+    fetch("/api/health")
+      .then(r => r.json())
+      .then(d => {
+        document.getElementById("dot").classList.add("ok");
+        document.getElementById("status-text").textContent =
+          "API online · " + d.service + " · " + d.time;
+      })
+      .catch(() => {
+        document.getElementById("status-text").textContent = "API not reachable";
+      });
+  </script>
+</body>
+</html>

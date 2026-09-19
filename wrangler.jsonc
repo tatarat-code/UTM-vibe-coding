@@ -1,0 +1,24 @@
+{
+  // Cloudflare Workers configuration
+  // Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "utm-vibe-coding",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Static site: everything under public/ is served as-is.
+  // Requests that do not match a static file fall through to src/index.js.
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
+  "observability": {
+    "enabled": true
+  }
+
+  // Secrets (never commit): npx wrangler secret put ANTHROPIC_API_KEY
+  // Local dev: put the same key in .dev.vars (git-ignored)
+}
