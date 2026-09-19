@@ -19,6 +19,6 @@
     "enabled": true
   }
 
-  // Secrets (never commit): npx wrangler secret put ANTHROPIC_API_KEY
+  // Secrets (never commit): npx wrangler secret put OPENAI_API_KEY
   // Local dev: put the same key in .dev.vars (git-ignored)
 }

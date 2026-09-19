@@ -33,7 +33,7 @@ npx wrangler dev          # http://localhost:8787
 Put the API key for local dev in `.dev.vars` (git-ignored):
 
 ```
-ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-ant-...
 ```
 
 ## Deploy
@@ -45,7 +45,7 @@ npx wrangler deploy
 Production secret (set once):
 
 ```powershell
-npx wrangler secret put ANTHROPIC_API_KEY
+npx wrangler secret put OPENAI_API_KEY
 ```
 
 After connecting the GitHub repository in the Cloudflare dashboard
