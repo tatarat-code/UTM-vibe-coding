@@ -1,0 +1,68 @@
+{
+  "id": "r_ujt1333_w12",
+  "course": "UJT 1333 Advances in Technology and Management Research",
+  "topic": "Week 12 — Technology Strategy and R&D Management",
+  "title": "Corporate In-house Startup Programs: A Management Assessment",
+  "assignment": "Examine corporate in-house startup programs (including internal venturing and corporate venturing schemes) from the perspective of corporate management, and assess their merits and demerits. Your paper must (1) position the program within technology strategy and the technology acquisition approaches (in-house R&D, alliances, industry–government–academia collaboration, venture collaboration); (2) analyse the managerial merits and demerits from multiple perspectives, supported by literature or cases; and (3) derive recommendations for a company that introduces or operates such a program.",
+  "requirements": {
+    "length": "1,200–1,500 words in English, excluding references",
+    "sources": "At least five peer-reviewed sources or credible cases, cited in APA 7th edition style",
+    "structure": "Introduction; Positioning; Analysis of merits and demerits; Recommendations; Conclusion; References",
+    "format": "Single PDF file"
+  },
+  "clos": [
+    { "id": "CLO1", "text": "Identify current development and issues in technology and management research." },
+    { "id": "CLO2", "text": "Organize gaps in current research and the role of theory synthesis in theory development." },
+    { "id": "CLO3", "text": "Formulate their research to reflect the most current development in technology and management research." }
+  ],
+  "language": "en",
+  "scale": { "max": 3, "min": 1, "labels": { "3": "Excellent", "2": "Satisfactory", "1": "Developing" } },
+  "scoring": {
+    "formula": "total = sum(weight × score / 3)",
+    "maxTotal": 100,
+    "rule": "A level is awarded only when all conditions of that level are met; if any condition of a higher level is not met, award the level below. Formal requirements in LO3 (number of sources, APA style, word count) are checked independently of content."
+  },
+  "criteria": [
+    {
+      "id": "LO1",
+      "name": "Positioning",
+      "description": "Positions the in-house startup program accurately within the framework of technology strategy and technology acquisition approaches.",
+      "cloRef": "CLO1",
+      "sourceNote": "Syllabus Week 12: technology strategy for corporate and business objectives; technology acquisition approaches (in-house development, alliances, industry–government–academia collaboration, venture collaboration).",
+      "weight": 30,
+      "levels": [
+        { "score": 3, "label": "Excellent", "descriptor": "Defines the program and distinguishes its types (e.g., internal call-for-proposals, CVC-linked, spin-off); states its purpose within technology strategy (e.g., new business exploration, technology acquisition, talent development); and explains, with literature, how it differs from and complements the other technology acquisition approaches (in-house R&D, alliances, industry–government–academia collaboration, external venture collaboration)." },
+        { "score": 2, "label": "Satisfactory", "descriptor": "Defines the program and states its purpose within technology strategy, but the comparison with other technology acquisition approaches is partial, or the distinction between program types is unclear." },
+        { "score": 1, "label": "Developing", "descriptor": "Describes the program only in general terms; the relationship to technology strategy and technology acquisition approaches is missing or incorrect." }
+      ]
+    },
+    {
+      "id": "LO2",
+      "name": "Multi-perspective analysis",
+      "description": "Analyses the merits and demerits of the program from the perspective of corporate management, on the basis of evidence.",
+      "cloRef": "CLO2",
+      "sourceNote": "Syllabus Week 12: R&D management (process, resources, people, organisation); Week 11: IP management; Week 7: financing and investment appraisal.",
+      "weight": 40,
+      "levels": [
+        { "score": 3, "label": "Excellent", "descriptor": "Analyses both merits and demerits from at least three managerial perspectives (e.g., resource allocation, R&D organisation design, people and careers, IP and governance, finance and investment appraisal, business portfolio); every argument is supported by literature or a concrete case; and trade-offs between perspectives (e.g., autonomy versus control) are addressed." },
+        { "score": 2, "label": "Satisfactory", "descriptor": "Covers both merits and demerits, but from two or fewer perspectives, or some arguments lack supporting evidence; trade-offs are mentioned only weakly." },
+        { "score": 1, "label": "Developing", "descriptor": "One-sided (merits or demerits only), unsupported by evidence, or limited to a list of general statements and opinions." }
+      ]
+    },
+    {
+      "id": "LO3",
+      "name": "Recommendations and academic writing",
+      "description": "Derives feasible recommendations from the analysis and presents them in an appropriate academic form.",
+      "cloRef": "CLO3",
+      "sourceNote": "Syllabus p.6 Project Paper requirements (APA 7th ed., structure); Comprehensive Area qualitative requirements (utility, feasibility).",
+      "weight": 30,
+      "levels": [
+        { "score": 3, "label": "Excellent", "descriptor": "Recommendations follow logically from the analysis in LO2; the target company's conditions (size, industry, technology resources) are specified; concrete design and operating measures are proposed (e.g., evaluation criteria, resource allocation rules, interface with the parent organisation, exit criteria). The structure is clear, at least five sources are cited correctly in APA style, and the word-count requirement is met." },
+        { "score": 2, "label": "Satisfactory", "descriptor": "Recommendations are given but only partly connected to the analysis, or the measures are generic. Minor deficiencies in structure or citation (formatting errors, fewer sources than required)." },
+        { "score": 1, "label": "Developing", "descriptor": "No recommendations, or recommendations unrelated to the analysis. Unclear structure; citations inappropriate or missing; word count far outside the requirement." }
+      ]
+    }
+  ],
+  "example": { "LO1": 3, "LO2": 2, "LO3": 3, "total": 86.7 },
+  "createdAt": "2026-09-21T00:00:00+08:00"
+}
