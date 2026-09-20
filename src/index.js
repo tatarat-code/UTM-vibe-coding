@@ -5,10 +5,13 @@
  * Only requests under /api/* reach this code.
  *
  * Roadmap for the lecture (each step is added live with Claude Code):
- *   Step 1 — /api/chat      : voice-enabled AI chat
+ *   Banner Reader — /api/banner/* : photo of a poster or banner -> structured record
  *   Step 2 — /api/rubric    : rubric authoring assistant
  *   Step 3 — /api/grade     : rubric-based grading of submissions
  */
+
+import { handleCapture } from "./banner/capture.js";
+import { buildFieldManifest } from "./banner/schema.js";
 
 export default {
   async fetch(request, env) {
@@ -20,6 +23,15 @@ export default {
         service: "utm-vibe-coding",
         time: new Date().toISOString(),
       });
+    }
+
+    // Banner Reader. Everything for it lives in src/banner/.
+    if (url.pathname === "/api/banner/capture") {
+      return handleCapture(request, env);
+    }
+
+    if (url.pathname === "/api/banner/schema") {
+      return json(buildFieldManifest());
     }
 
     return json({ error: "Not found", path: url.pathname }, 404);
