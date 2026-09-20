@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Voice AI chat — UTM CEE</title>
+  <link rel="stylesheet" href="/app.css">
+  <style>
+    main { max-width: 900px; margin: 0 auto; padding: 40px 20px 80px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 24px; }
+    .brand { font-weight: 700; }
+    .brand span { color: var(--accent); }
+    .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: .78rem; }
+    h1 { font-size: clamp(1.8rem, 4.5vw, 2.6rem); margin: 8px 0 10px; line-height: 1.15; }
+    .lead { color: var(--muted); margin: 0 0 28px; max-width: 620px; }
+
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 22px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .controls .btn { flex: 1 1 200px; min-height: 56px; font-size: 1.05rem; }
+
+    .state { display: flex; align-items: center; gap: 10px; margin-top: 18px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9rem; color: var(--muted); }
+    .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--muted); flex: 0 0 auto; }
+    .dot.connecting { background: var(--warn); }
+    .dot.listening { background: var(--ok); }
+    .dot.speaking { background: var(--accent); }
+    .dot.error { background: var(--bad); }
+
+    .transcript { margin-top: 24px; display: flex; flex-direction: column; gap: 12px; min-height: 160px; }
+    .turn { border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; background: var(--panel); }
+    .turn.you { border-left: 3px solid var(--ok); }
+    .turn.assistant { border-left: 3px solid var(--accent); }
+    .turn .who { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .turn p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+    .empty { color: var(--muted); font-size: .95rem; }
+    .error { margin-top: 18px; padding: 14px 16px; border-radius: 12px; background: #2a1414; border: 1px solid var(--bad); }
+    .hint { margin-top: 28px; color: var(--muted); font-size: .88rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="topbar">
+      <div class="brand">UTM<span> CEE</span></div>
+      <a class="small muted" href="/">Home</a>
+    </div>
+
+    <div class="eyebrow">Step 1</div>
+    <h1>Voice AI chat</h1>
+    <p class="lead">
+      Speak to the teaching assistant. Your microphone goes straight to the model over
+      WebRTC; the API key stays on the server, and the browser only ever holds a token
+      that expires in about a minute.
+    </p>
+
+    <div class="panel">
+      <div class="controls">
+        <button class="btn btn-primary" id="start" type="button">Start conversation</button>
+        <button class="btn btn-ghost" id="stop" type="button" disabled>Stop</button>
+      </div>
+      <div class="state">
+        <span class="dot" id="dot"></span><span id="stateText">idle</span>
+      </div>
+    </div>
+
+    <div class="error" id="error" hidden></div>
+
+    <div class="transcript" id="transcript">
+      <p class="empty">The conversation will appear here, both sides of it.</p>
+    </div>
+
+    <p class="hint">
+      The assistant answers in English whatever language you use, and keeps answers short —
+      both are instructions set on the server when the token is minted, not in this page.
+    </p>
+
+    <audio id="audio" autoplay></audio>
+  </main>
+
+  <script type="module">
+    const CALLS_URL = "https://api.openai.com/v1/realtime/calls";
+
+    const el = {
+      start: document.getElementById("start"),
+      stop: document.getElementById("stop"),
+      dot: document.getElementById("dot"),
+      stateText: document.getElementById("stateText"),
+      transcript: document.getElementById("transcript"),
+      error: document.getElementById("error"),
+      audio: document.getElementById("audio"),
+    };
+
+    let peer = null;
+    let channel = null;
+    let microphone = null;
+    const turns = new Map(); // event id -> { who, text, node }
+
+    el.start.addEventListener("click", start);
+    el.stop.addEventListener("click", () => stop("idle"));
+
+    async function start() {
+      showError(null);
+      el.start.disabled = true;
+      setState("connecting", "connecting…");
+
+      try {
+        const session = await fetch("/api/live/session", { method: "POST" });
+        const token = await session.json();
+        if (!session.ok || !token.value) {
+          throw new Error(token?.error ?? `The token service returned ${session.status}`);
+        }
+
+        try {
+          microphone = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch {
+          throw new Error(
+            "The browser did not grant access to the microphone. Allow it for this site (the padlock in the address bar) and press Start again.",
+          );
+        }
+
+        peer = new RTCPeerConnection();
+        peer.ontrack = (event) => { el.audio.srcObject = event.streams[0]; };
+        peer.onconnectionstatechange = () => {
+          if (peer?.connectionState === "failed" || peer?.connectionState === "disconnected") {
+            showError("The connection dropped. This venue's network may be blocking WebRTC.");
+            stop("error");
+          }
+        };
+        for (const track of microphone.getTracks()) peer.addTrack(track, microphone);
+
+        channel = peer.createDataChannel("oai-events");
+        channel.addEventListener("message", (event) => handleEvent(event.data));
+        channel.addEventListener("open", () => setState("listening", `listening · ${token.model} · ${token.voice}`));
+
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+
+        const answer = await fetch(CALLS_URL, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${token.value}`,
+            "content-type": "application/sdp",
+          },
+          body: offer.sdp,
+        });
+
+        if (!answer.ok) {
+          throw new Error(`The call could not be opened (${answer.status})`);
+        }
+
+        await peer.setRemoteDescription({ type: "answer", sdp: await answer.text() });
+
+        el.stop.disabled = false;
+        setState("listening", `listening · ${token.model} · ${token.voice}`);
+      } catch (error) {
+        showError(error.message);
+        stop("error");
+      }
+    }
+
+    function stop(state = "idle") {
+      channel?.close();
+      peer?.close();
+      for (const track of microphone?.getTracks() ?? []) track.stop();
+      channel = null;
+      peer = null;
+      microphone = null;
+      el.audio.srcObject = null;
+      el.start.disabled = false;
+      el.stop.disabled = true;
+      setState(state === "error" ? "error" : "", state === "error" ? "stopped after an error" : "idle");
+    }
+
+    /* ---------- events on the data channel ---------- */
+
+    function handleEvent(raw) {
+      let event;
+      try { event = JSON.parse(raw); } catch { return; }
+      const type = event.type ?? "";
+
+      if (type === "error") {
+        showError(event.error?.message ?? "The model reported an error");
+        return;
+      }
+
+      // The speaker's own words, as the model heard them.
+      if (type.includes("input_audio_transcription")) {
+        const id = event.item_id ?? event.id ?? "you";
+        if (type.endsWith(".delta")) append(id, "you", event.delta ?? "");
+        if (type.endsWith(".completed")) replace(id, "you", event.transcript ?? "");
+        return;
+      }
+
+      // What the assistant is saying, while it says it.
+      if (type.includes("audio_transcript")) {
+        const id = event.response_id ?? event.item_id ?? "assistant";
+        if (type.endsWith(".delta")) append(id, "assistant", event.delta ?? "");
+        if (type.endsWith(".done")) replace(id, "assistant", event.transcript ?? "");
+        return;
+      }
+
+      if (type === "input_audio_buffer.speech_started") setState("listening", "listening — you are speaking");
+      if (type === "response.created") setState("speaking", "the assistant is answering");
+      if (type === "response.done") setState("listening", "listening");
+    }
+
+    function append(id, who, text) {
+      if (!text) return;
+      const turn = ensureTurn(id, who);
+      turn.text += text;
+      turn.body.textContent = turn.text;
+    }
+
+    function replace(id, who, text) {
+      if (!text) return;
+      const turn = ensureTurn(id, who);
+      turn.text = text;
+      turn.body.textContent = text;
+    }
+
+    function ensureTurn(id, who) {
+      const key = `${who}:${id}`;
+      if (turns.has(key)) return turns.get(key);
+
+      el.transcript.querySelector(".empty")?.remove();
+
+      const box = document.createElement("div");
+      box.className = `turn ${who}`;
+
+      const label = document.createElement("div");
+      label.className = "who";
+      label.textContent = who === "you" ? "You" : "Assistant";
+
+      const body = document.createElement("p");
+
+      box.append(label, body);
+      el.transcript.append(box);
+      box.scrollIntoView({ block: "end", behavior: "smooth" });
+
+      const turn = { text: "", body };
+      turns.set(key, turn);
+      return turn;
+    }
+
+    /* ---------- small helpers ---------- */
+
+    function setState(kind, text) {
+      el.dot.className = `dot ${kind}`;
+      el.stateText.textContent = text;
+    }
+
+    function showError(message) {
+      el.error.hidden = !message;
+      el.error.textContent = message ?? "";
+    }
+  </script>
+</body>
+</html>

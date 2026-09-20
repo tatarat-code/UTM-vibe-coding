@@ -10,6 +10,7 @@
  *   Step 3 — /api/grade     : rubric-based grading of submissions
  */
 
+import { handleLiveSession } from "./live.js";
 import { handleCapture } from "./banner/capture.js";
 import { handleEntries } from "./banner/entries.js";
 import { handleExport } from "./banner/exporter.js";
@@ -25,6 +26,11 @@ export default {
         service: "utm-vibe-coding",
         time: new Date().toISOString(),
       });
+    }
+
+    // Step 1 — voice conversation. Mints a short-lived token for the browser.
+    if (url.pathname === "/api/live/session") {
+      return handleLiveSession(request, env);
     }
 
     // Banner Reader. Everything for it lives in src/banner/.
