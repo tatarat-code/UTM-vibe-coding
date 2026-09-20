@@ -1,8 +1,11 @@
 /**
  * Banner Reader — saved entries (KV).
  *
- * Keys:  entry:<id>   one record
- *        idx:all      newest-first list of summaries, used for the list screen
+ * Keys: entry:<id>, one record each, with a short summary kept in the key's
+ * metadata. The list screen is built by listing keys, not by keeping a
+ * separate index document: one shared index would have to be read, changed
+ * and written back on every save, and two saves in quick succession would
+ * lose one of them.
  *
  * Records expire after 24 hours (NFR-06). A record saved with ?keep=1 has no
  * expiry: that is how the speaker's rehearsal entries survive to the next day.
@@ -10,12 +13,12 @@
  */
 
 import { normaliseEntry } from "./capture.js";
-import { getJson, putJson, remove, updateJson, StoreUnavailable } from "../store.js";
+import { getJson, putJson, remove, listWithMetadata, StoreUnavailable } from "../store.js";
 import { ENTRY_TYPES } from "./schema.js";
 
 const TTL_SECONDS = 24 * 60 * 60;
-const INDEX_KEY = "idx:all";
-const INDEX_LIMIT = 300;
+const PREFIX = "entry:";
+const MAX_ROWS = 1000;
 const DEFAULT_LIMIT = 20;
 
 export async function handleEntries(request, env, url) {
@@ -56,7 +59,7 @@ async function save(request, env, url, existingId = null) {
   }
 
   const id = safeId(existingId ?? raw.id);
-  const previous = existingId ? await getJson(env, `entry:${id}`) : null;
+  const previous = existingId ? await getJson(env, PREFIX + id) : null;
   if (existingId && !previous) return json({ error: "No entry with that id" }, 404);
 
   const pinned = url.searchParams.get("keep") === "1" || previous?.pinned === true;
@@ -69,9 +72,10 @@ async function save(request, env, url, existingId = null) {
   entry.pinned = pinned;
   entry.savedAt = new Date().toISOString();
 
-  const options = pinned ? {} : { expirationTtl: TTL_SECONDS };
-  await putJson(env, `entry:${id}`, entry, options);
-  await updateIndex(env, (rows) => [summarise(entry), ...rows.filter((row) => row.id !== id)]);
+  await putJson(env, PREFIX + id, entry, {
+    metadata: summarise(entry),
+    ...(pinned ? {} : { expirationTtl: TTL_SECONDS }),
+  });
 
   return json(entry, existingId ? 200 : 201);
 }
@@ -83,7 +87,7 @@ async function list(env, url) {
   const limit = clampNumber(url.searchParams.get("limit"), DEFAULT_LIMIT, 1, 100);
   const offset = clampNumber(url.searchParams.get("offset"), 0, 0, 10000);
 
-  const rows = live(await getJson(env, INDEX_KEY, []));
+  const rows = await allRows(env);
 
   const counts = { all: rows.length };
   for (const entryType of ENTRY_TYPES) {
@@ -110,52 +114,51 @@ async function list(env, url) {
   });
 }
 
+/** Every saved record, newest first. */
+export async function allRows(env) {
+  const keys = await listWithMetadata(env, PREFIX, MAX_ROWS);
+  const rows = keys.map((key) => ({ id: key.key.slice(PREFIX.length), ...(key.metadata ?? {}) }));
+
+  // A key's metadata can lag a few seconds behind the write that set it, which
+  // is exactly the moment someone saves a record and taps through to the list.
+  // Read those records directly instead of showing a blank line.
+  const pending = rows.filter((row) => !row.type).slice(0, 30);
+  await Promise.all(
+    pending.map(async (row) => {
+      const entry = await getJson(env, PREFIX + row.id);
+      if (entry) Object.assign(row, summarise(entry));
+    }),
+  );
+
+  return rows
+    .filter((row) => row.type)
+    .sort((a, b) => String(b.savedAt ?? "").localeCompare(String(a.savedAt ?? "")));
+}
+
 async function readOne(env, id) {
-  const entry = await getJson(env, `entry:${safeId(id)}`);
+  const entry = await getJson(env, PREFIX + safeId(id));
   if (!entry) return json({ error: "No entry with that id" }, 404);
   return json(entry);
 }
 
 async function deleteOne(env, id) {
   const key = safeId(id);
-  await remove(env, `entry:${key}`);
-  await updateIndex(env, (rows) => rows.filter((row) => row.id !== key));
+  await remove(env, PREFIX + key);
   return json({ deleted: key });
 }
 
-/* ---------- index ---------- */
-
-async function updateIndex(env, change) {
-  await updateJson(
-    env,
-    INDEX_KEY,
-    (current) => {
-      const rows = live(Array.isArray(current) ? current : []);
-      return change(rows).slice(0, INDEX_LIMIT);
-    },
-    { fallback: [] },
-  );
-}
-
-/** Rows whose entry has not expired yet. Pinned rows never expire. */
-function live(rows) {
-  const cutoff = Date.now() - TTL_SECONDS * 1000;
-  return rows.filter((row) => {
-    if (!row?.id) return false;
-    if (row.pinned) return true;
-    const savedAt = Date.parse(row.savedAt ?? row.capturedAt ?? "");
-    return Number.isFinite(savedAt) ? savedAt > cutoff : true;
-  });
-}
-
+/**
+ * The summary kept in the key's metadata. KV allows about 1 KB there, so the
+ * long text is cut: the list screen and the search need a handle, not the
+ * record itself.
+ */
 function summarise(entry) {
   return {
-    id: entry.id,
     type: entry.type,
-    title: entry.title,
-    org: entry.org,
-    summary: entry.summary,
-    tags: entry.tags ?? [],
+    title: cut(entry.title, 140),
+    org: cut(entry.org, 80),
+    summary: cut(entry.summary, 160),
+    tags: (entry.tags ?? []).slice(0, 6).map((tag) => cut(tag, 30)),
     contacts: entry.contacts?.length ?? 0,
     capturedAt: entry.capturedAt,
     savedAt: entry.savedAt,
@@ -165,6 +168,11 @@ function summarise(entry) {
 }
 
 /* ---------- helpers ---------- */
+
+function cut(value, length) {
+  if (typeof value !== "string") return null;
+  return value.length > length ? value.slice(0, length - 1) + "…" : value;
+}
 
 function safeId(id) {
   const cleaned = String(id ?? "").replace(/[^A-Za-z0-9_-]/g, "");

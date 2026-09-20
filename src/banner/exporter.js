@@ -9,20 +9,30 @@
  * spreadsheet, where someone else can still check it.
  */
 
-import { getJson } from "../store.js";
+import { getJson, StoreUnavailable } from "../store.js";
+import { allRows } from "./entries.js";
 import { TYPE_FIELDS, TYPED, CONTACT_FIELDS } from "./schema.js";
 
-const INDEX_KEY = "idx:all";
 const MAX_ROWS = 300;
 
 export async function handleExport(request, env, url) {
   if (request.method !== "GET") return text("Use GET", 405);
 
+  try {
+    return await exportEntries(env, url);
+  } catch (error) {
+    if (error instanceof StoreUnavailable) return text(error.message, 503);
+    throw error;
+  }
+}
+
+async function exportEntries(env, url) {
+
   const format = (url.searchParams.get("format") ?? "json").toLowerCase();
   const type = url.searchParams.get("type") ?? "all";
   const query = (url.searchParams.get("q") ?? "").trim().toLowerCase();
 
-  const rows = await getJson(env, INDEX_KEY, []);
+  const rows = await allRows(env);
   const wanted = rows
     .filter((row) => (type === "all" ? true : row.type === type))
     .filter((row) =>

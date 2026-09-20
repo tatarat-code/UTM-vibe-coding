@@ -30,8 +30,34 @@ export async function getJson(env, key, fallback = null) {
 export async function putJson(env, key, value, options = {}) {
   const put = {};
   if (options.expirationTtl) put.expirationTtl = options.expirationTtl;
+  if (options.metadata) put.metadata = options.metadata;
   await kv(env).put(key, JSON.stringify(value), put);
   return value;
+}
+
+/**
+ * Every key under a prefix, with the metadata stored beside it.
+ *
+ * This is how lists are built. A separate index document would be one blob
+ * that every save has to read, change and write back — and KV reads can lag
+ * a moment behind the last write, so two saves in quick succession quietly
+ * lose one of them. Listing keys has no such race, and expired keys simply
+ * stop appearing.
+ */
+export async function listWithMetadata(env, prefix, limit = 1000) {
+  const rows = [];
+  let cursor;
+
+  do {
+    const page = await kv(env).list({ prefix, limit: Math.min(1000, limit), cursor });
+    for (const key of page.keys) {
+      rows.push({ key: key.name, metadata: key.metadata ?? null });
+      if (rows.length >= limit) return rows;
+    }
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+
+  return rows;
 }
 
 export async function remove(env, key) {
