@@ -4,24 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Vibe Coding — UTM CEE Guest Lecture</title>
+  <!-- Palette and base styles now live in app.css, shared with /banner/. -->
+  <link rel="stylesheet" href="/app.css">
   <style>
-    :root {
-      --bg: #0f172a;
-      --panel: #1e293b;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --accent: #f59e0b;
-      --ok: #22c55e;
-      --border: #334155;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
-    }
     main { max-width: 900px; margin: 0 auto; padding: 48px 20px 80px; }
     .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: .8rem; }
     h1 { font-size: clamp(2rem, 5vw, 3.2rem); margin: 8px 0 12px; line-height: 1.15; }
@@ -35,6 +20,8 @@
       padding: 20px;
     }
     .card h2 { font-size: 1.05rem; margin: 0 0 8px; }
+    .card-link { display: block; text-decoration: none; color: inherit; border-color: var(--accent); }
+    .card-link:hover { background: #243349; }
     .card p { margin: 0; color: var(--muted); font-size: .95rem; }
     .step { display: inline-block; color: var(--accent); font-weight: 700; margin-right: 6px; }
     .status {
@@ -66,6 +53,11 @@
         <h2><span class="step">0</span>Website</h2>
         <p>Live now. Every <code>git push</code> redeploys automatically.</p>
       </div>
+      <a class="card card-link" href="/banner/capture.html">
+        <h2><span class="step">▣</span>Banner Reader</h2>
+        <p>Photograph a conference banner, a poster, an exhibition panel or a business
+          card. Get back a record you can search — with the empty fields left empty.</p>
+      </a>
       <div class="card">
         <h2><span class="step">1</span>Voice AI chat</h2>
         <p>Talk to an AI assistant with your voice. Coming up during the lecture.</p>

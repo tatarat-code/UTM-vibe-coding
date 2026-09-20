@@ -12,6 +12,7 @@
 
 import { handleCapture } from "./banner/capture.js";
 import { handleEntries } from "./banner/entries.js";
+import { handleExport } from "./banner/exporter.js";
 import { buildFieldManifest } from "./banner/schema.js";
 
 export default {
@@ -37,6 +38,10 @@ export default {
 
     if (url.pathname === "/api/banner/entries" || url.pathname.startsWith("/api/banner/entries/")) {
       return handleEntries(request, env, url);
+    }
+
+    if (url.pathname === "/api/banner/export") {
+      return handleExport(request, env, url);
     }
 
     return json({ error: "Not found", path: url.pathname }, 404);

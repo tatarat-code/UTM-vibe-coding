@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Banner Reader — export</title>
+  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/banner/mobile.css">
+  <style>
+    .choice { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 24px; }
+    .choice button {
+      flex: 1 1 140px; min-height: 48px; padding: 10px 14px; border-radius: 12px;
+      border: 1px solid var(--border); background: var(--panel); color: var(--muted);
+      font: inherit; font-size: 1rem; cursor: pointer;
+    }
+    .choice button[aria-pressed="true"] { color: #1c1917; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="topbar">
+      <div class="brand">Banner<span>Reader</span></div>
+      <a class="small muted" href="/banner/list.html">List</a>
+    </div>
+
+    <h2 class="section">What to export</h2>
+    <div class="choice" id="types"></div>
+
+    <h2 class="section">As what</h2>
+    <div class="choice" id="formats"></div>
+
+    <div class="notice" id="summary">Counting…</div>
+
+    <div class="sticky">
+      <a class="btn btn-primary" id="download" href="#">Download</a>
+    </div>
+
+    <p class="hint">
+      CSV columns follow the type: a conference banner and a business card do not
+      share a shape. Each value is followed by the text it was read from, so the
+      spreadsheet can still be checked against the photograph.
+    </p>
+  </main>
+
+  <script type="module">
+    const TYPES = [
+      ["all", "Everything"],
+      ["conference", "Conference"],
+      ["research", "Research"],
+      ["exhibition", "Exhibition"],
+      ["card", "Cards"],
+    ];
+    const FORMATS = [["csv", "CSV"], ["json", "JSON"]];
+
+    const el = {
+      types: document.getElementById("types"),
+      formats: document.getElementById("formats"),
+      summary: document.getElementById("summary"),
+      download: document.getElementById("download"),
+    };
+
+    let type = "all";
+    let format = "csv";
+    let counts = {};
+
+    render();
+    refresh();
+
+    function render() {
+      el.types.textContent = "";
+      for (const [key, label] of TYPES) {
+        el.types.append(choice(label + countSuffix(key), key === type, () => { type = key; render(); refresh(); }));
+      }
+      el.formats.textContent = "";
+      for (const [key, label] of FORMATS) {
+        el.formats.append(choice(label, key === format, () => { format = key; render(); refresh(); }));
+      }
+      const params = new URLSearchParams({ format, type });
+      el.download.href = `/api/banner/export?${params}`;
+      el.download.textContent = `Download ${format.toUpperCase()}`;
+    }
+
+    function choice(label, pressed, onClick) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.setAttribute("aria-pressed", String(pressed));
+      button.addEventListener("click", onClick);
+      return button;
+    }
+
+    function countSuffix(key) {
+      const count = counts[key];
+      return count === undefined ? "" : ` ${count}`;
+    }
+
+    async function refresh() {
+      try {
+        const response = await fetch("/api/banner/entries?limit=1");
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error ?? "The list is not available");
+        counts = payload.counts ?? {};
+        const count = counts[type] ?? 0;
+        el.summary.textContent = count === 0
+          ? "Nothing to export yet."
+          : `${count} record${count === 1 ? "" : "s"} · ${type === "all" ? "shared columns only" : "columns for this type"}`;
+        el.download.classList.toggle("btn-primary", count > 0);
+        render();
+      } catch (error) {
+        el.summary.textContent = error.message;
+      }
+    }
+  </script>
+</body>
+</html>
