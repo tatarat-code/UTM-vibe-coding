@@ -18,6 +18,8 @@
 
     <div class="sticky" id="actions" hidden>
       <a class="btn btn-ghost" href="/banner/capture.html">Read another</a>
+      <button class="btn btn-primary" id="save" type="button">Save to list</button>
+      <a class="btn btn-ghost" id="open-list" href="/banner/list.html" hidden>List</a>
     </div>
   </main>
 
@@ -52,10 +54,13 @@
 
     const view = document.getElementById("view");
     const actions = document.getElementById("actions");
+    const saveButton = document.getElementById("save");
+    const listLink = document.getElementById("open-list");
     const id = new URLSearchParams(location.search).get("id");
 
     let entry = null;
     let manifest = null;
+    let saved = false; // true once this entry exists on the server
 
     start();
 
@@ -69,15 +74,56 @@
       manifest = schema;
       render();
       actions.hidden = false;
+      showSaveState();
+      saveButton.addEventListener("click", saveToList);
     }
 
     async function loadEntry(entryId) {
       const local = localStorage.getItem(`banner:entry:${entryId}`);
       if (local) {
-        try { return JSON.parse(local); } catch { /* fall through to the server */ }
+        try {
+          const parsed = JSON.parse(local);
+          saved = parsed.savedAt !== undefined;
+          return parsed;
+        } catch { /* fall through to the server */ }
       }
       const response = await fetch(`/api/banner/entries/${encodeURIComponent(entryId)}`);
-      return response.ok ? response.json() : null;
+      if (!response.ok) return null;
+      saved = true;
+      return response.json();
+    }
+
+    async function saveToList() {
+      saveButton.disabled = true;
+      saveButton.textContent = "Saving…";
+      try {
+        const response = await fetch("/api/banner/entries", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(entry),
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(payload?.error ?? `Saving returned ${response.status}`);
+
+        entry = payload;
+        saved = true;
+        localStorage.setItem(`banner:entry:${entry.id}`, JSON.stringify(entry));
+        render();
+      } catch (error) {
+        saveButton.textContent = error.message;
+        return;
+      } finally {
+        saveButton.disabled = false;
+      }
+      showSaveState();
+    }
+
+    function showSaveState() {
+      saveButton.textContent = saved ? "Saved" : "Save to list";
+      saveButton.classList.toggle("btn-primary", !saved);
+      saveButton.classList.toggle("btn-ghost", saved);
+      saveButton.disabled = saved;
+      listLink.hidden = !saved;
     }
 
     async function loadManifest() {
@@ -263,6 +309,21 @@
 
     async function persist() {
       localStorage.setItem(`banner:entry:${entry.id}`, JSON.stringify(entry));
+      if (!saved) return; // not on the server yet; "Save to list" will send it
+
+      try {
+        const response = await fetch(`/api/banner/entries/${encodeURIComponent(entry.id)}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(entry),
+        });
+        if (response.ok) {
+          entry = await response.json();
+          localStorage.setItem(`banner:entry:${entry.id}`, JSON.stringify(entry));
+        }
+      } catch {
+        // The phone keeps the correction either way; the list may lag behind.
+      }
     }
 
     /* ---------- small helpers ---------- */

@@ -11,6 +11,7 @@
  */
 
 import { handleCapture } from "./banner/capture.js";
+import { handleEntries } from "./banner/entries.js";
 import { buildFieldManifest } from "./banner/schema.js";
 
 export default {
@@ -32,6 +33,10 @@ export default {
 
     if (url.pathname === "/api/banner/schema") {
       return json(buildFieldManifest());
+    }
+
+    if (url.pathname === "/api/banner/entries" || url.pathname.startsWith("/api/banner/entries/")) {
+      return handleEntries(request, env, url);
     }
 
     return json({ error: "Not found", path: url.pathname }, 404);

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Banner Reader — list</title>
+  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/banner/mobile.css">
+  <style>
+    .count { font-size: 2.6rem; font-weight: 800; line-height: 1; }
+    .tabs { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 8px; margin: 12px -16px 0; padding-inline: 16px; }
+    .tab {
+      flex: 0 0 auto; min-height: 44px; padding: 8px 14px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--panel); color: var(--muted);
+      font: inherit; font-size: .9rem; cursor: pointer;
+    }
+    .tab[aria-selected="true"] { color: #1c1917; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+    .search {
+      width: 100%; min-height: 48px; margin-top: 12px; padding: 12px 14px;
+      border-radius: 12px; border: 1px solid var(--border); background: var(--panel);
+      color: var(--text); font: inherit; font-size: 16px;
+    }
+    .item { display: flex; gap: 12px; align-items: flex-start; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+    .item a { flex: 1; color: inherit; text-decoration: none; min-width: 0; }
+    .item h3 { margin: 0 0 4px; font-size: 1rem; line-height: 1.35; }
+    .item .meta { font-size: .8rem; color: var(--muted); }
+    .item .drop { min-height: 44px; min-width: 44px; border: none; background: transparent; color: var(--muted); font-size: 1rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="topbar">
+      <div class="brand">Banner<span>Reader</span></div>
+      <a class="small muted" href="/banner/capture.html">New</a>
+    </div>
+
+    <div class="count" id="count">—</div>
+    <div class="small muted" id="countLabel">records kept</div>
+
+    <div class="tabs" id="tabs"></div>
+    <input class="search" id="search" type="search" placeholder="Search title, organisation, tags" autocomplete="off">
+
+    <div id="items" style="margin-top:16px"></div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn btn-ghost" id="more" type="button" hidden>Load 20 more</button>
+    </div>
+
+    <p class="hint">
+      Records disappear 24 hours after they are saved, and no image is kept at any point.
+      That is a decision, not a limitation: a reading is worth keeping, a photograph of
+      someone's business card is not.
+    </p>
+
+    <div class="sticky">
+      <a class="btn btn-primary" href="/banner/capture.html">Read something</a>
+      <a class="btn btn-ghost" href="/banner/export.html">Export</a>
+    </div>
+  </main>
+
+  <script type="module">
+    const TABS = [
+      ["all", "All"],
+      ["conference", "Conference"],
+      ["research", "Research"],
+      ["exhibition", "Exhibition"],
+      ["card", "Cards"],
+    ];
+
+    const el = {
+      tabs: document.getElementById("tabs"),
+      search: document.getElementById("search"),
+      items: document.getElementById("items"),
+      count: document.getElementById("count"),
+      countLabel: document.getElementById("countLabel"),
+      more: document.getElementById("more"),
+    };
+
+    let type = new URLSearchParams(location.search).get("type") ?? "all";
+    let query = "";
+    let offset = 0;
+    let counts = {};
+
+    el.more.addEventListener("click", () => load({ append: true }));
+
+    let typingTimer;
+    el.search.addEventListener("input", () => {
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => {
+        query = el.search.value.trim();
+        load();
+      }, 250);
+    });
+
+    renderTabs();
+    load();
+
+    async function load({ append = false } = {}) {
+      if (!append) {
+        offset = 0;
+        el.items.textContent = "";
+      }
+
+      const params = new URLSearchParams({ limit: "20", offset: String(offset) });
+      if (type !== "all") params.set("type", type);
+      if (query) params.set("q", query);
+
+      let payload;
+      try {
+        const response = await fetch(`/api/banner/entries?${params}`);
+        payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error ?? `The list returned ${response.status}`);
+      } catch (error) {
+        el.count.textContent = "—";
+        el.countLabel.textContent = error.message;
+        el.more.hidden = true;
+        return;
+      }
+
+      counts = payload.counts ?? {};
+      renderTabs();
+
+      el.count.textContent = String(payload.total);
+      el.countLabel.textContent = query
+        ? `records match “${query}”`
+        : type === "all"
+          ? "records kept"
+          : `${TABS.find(([key]) => key === type)?.[1] ?? type} records`;
+
+      for (const row of payload.items) el.items.append(itemCard(row));
+
+      if (!append && payload.items.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "notice";
+        empty.textContent = "Nothing here yet. Read a banner and save it.";
+        el.items.append(empty);
+      }
+
+      offset += payload.items.length;
+      el.more.hidden = offset >= payload.total;
+    }
+
+    function renderTabs() {
+      el.tabs.textContent = "";
+      for (const [key, label] of TABS) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "tab";
+        button.setAttribute("aria-selected", String(key === type));
+        const count = counts[key] ?? (key === "all" ? counts.all : undefined);
+        button.textContent = count === undefined ? label : `${label} ${count}`;
+        button.addEventListener("click", () => {
+          type = key;
+          load();
+        });
+        el.tabs.append(button);
+      }
+    }
+
+    function itemCard(row) {
+      const box = document.createElement("div");
+      box.className = "item";
+
+      const link = document.createElement("a");
+      link.href = `/banner/entry.html?id=${encodeURIComponent(row.id)}`;
+
+      const title = document.createElement("h3");
+      title.textContent = row.title ?? "(no title on the image)";
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = [
+        label(row.type),
+        row.org,
+        row.contacts ? `${row.contacts} contact${row.contacts === 1 ? "" : "s"}` : null,
+        row.reviewedBy === "human" ? "checked" : null,
+        ago(row.savedAt ?? row.capturedAt),
+      ].filter(Boolean).join(" · ");
+
+      link.append(title, meta);
+
+      const drop = document.createElement("button");
+      drop.type = "button";
+      drop.className = "drop";
+      drop.textContent = "✕";
+      drop.setAttribute("aria-label", "Delete this record");
+      drop.addEventListener("click", async () => {
+        if (!confirm("Delete this record?")) return;
+        await fetch(`/api/banner/entries/${encodeURIComponent(row.id)}`, { method: "DELETE" });
+        localStorage.removeItem(`banner:entry:${row.id}`);
+        load();
+      });
+
+      box.append(link, drop);
+      return box;
+    }
+
+    function label(key) {
+      return TABS.find(([tab]) => tab === key)?.[1] ?? key;
+    }
+
+    function ago(iso) {
+      const then = Date.parse(iso ?? "");
+      if (!Number.isFinite(then)) return "";
+      const minutes = Math.round((Date.now() - then) / 60000);
+      if (minutes < 1) return "just now";
+      if (minutes < 60) return `${minutes} min ago`;
+      const hours = Math.round(minutes / 60);
+      return hours < 24 ? `${hours} h ago` : `${Math.round(hours / 24)} d ago`;
+    }
+  </script>
+</body>
+</html>

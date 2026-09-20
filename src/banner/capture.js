@@ -153,12 +153,14 @@ export async function handleCapture(request, env) {
  * This is where the "no guessing" rule is enforced rather than merely asked for:
  * a value without sourceText is dropped, whatever the model claimed (FR-10, FR-11).
  */
-export function normaliseEntry(raw, meta = {}) {
+export function normaliseEntry(raw, meta = {}, overrides = {}) {
   const type = ENTRY_TYPES.includes(raw?.type) ? raw.type : "unknown";
 
   const fields = {};
   if (TYPED.includes(type)) {
-    const source = raw?.[type] ?? {};
+    // Fresh from the model the fields sit under raw[type]; an entry that has
+    // already been through here (a save, a correction) carries raw.fields.
+    const source = (isObject(raw?.fields) ? raw.fields : raw?.[type]) ?? {};
     for (const field of TYPE_FIELDS[type]) {
       fields[field.key] = normaliseField(source?.[field.key], field.multi);
     }
@@ -176,7 +178,7 @@ export function normaliseEntry(raw, meta = {}) {
   }
 
   return {
-    id: newId(),
+    id: overrides.id ?? newId(),
     type,
     typeConfidence: clampConfidence(raw?.typeConfidence),
     language: text(raw?.language),
@@ -188,26 +190,31 @@ export function normaliseEntry(raw, meta = {}) {
     fields,
     contacts,
     unreadable: stringList(raw?.unreadable),
-    capturedAt: new Date().toISOString(),
-    reviewedBy: null,
+    capturedAt: overrides.capturedAt ?? new Date().toISOString(),
+    reviewedBy: overrides.reviewedBy ?? null,
     meta: { model: meta.model ?? null, images: meta.images ?? null, ms: meta.ms ?? null },
   };
 }
 
 /** One { value, sourceText, confidence } triple, cleaned up. */
 function normaliseField(raw, multi) {
+  const edited = raw?.edited === true;
   const sourceText = text(raw?.sourceText);
   let value = multi ? stringList(raw?.value) : text(raw?.value);
 
   // No evidence, no value. Keeps the model from filling blanks from memory.
-  if (sourceText === null) value = null;
+  // A person's correction is evidence of its own kind, so it survives even
+  // when the image never carried that text.
+  if (sourceText === null && !edited) value = null;
   if (multi && Array.isArray(value) && value.length === 0) value = null;
 
-  return {
+  const field = {
     value,
     sourceText,
-    confidence: value === null ? 0 : clampConfidence(raw?.confidence),
+    confidence: value === null ? 0 : edited ? 1 : clampConfidence(raw?.confidence),
   };
+  if (edited && value !== null) field.edited = true;
+  return field;
 }
 
 function text(input) {
@@ -228,6 +235,10 @@ function stringList(input) {
 
 function asArray(input) {
   return Array.isArray(input) ? input : [];
+}
+
+function isObject(input) {
+  return Boolean(input) && typeof input === "object" && !Array.isArray(input);
 }
 
 function clampConfidence(input) {
