@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Banner Reader — entry</title>
+  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/banner/mobile.css">
+</head>
+<body>
+  <main class="wrap">
+    <div class="topbar">
+      <div class="brand">Banner<span>Reader</span></div>
+      <a class="small muted" href="/banner/capture.html">New</a>
+    </div>
+
+    <div id="view"></div>
+
+    <div class="sticky" id="actions" hidden>
+      <a class="btn btn-ghost" href="/banner/capture.html">Read another</a>
+    </div>
+  </main>
+
+  <script type="module">
+    /* ============================================================
+       Where each field sits on screen.
+
+       Adding a field to a poster? Two lines, two files:
+         1. src/banner/schema.js — the field itself
+         2. this list            — where it appears
+
+       A field that is missing from this list is still shown, after the
+       listed ones, with the label the API gives it. Nothing breaks.
+       ============================================================ */
+    const FIELD_ORDER = {
+      conference: [
+        "conferenceName", "acronym", "edition", "dates", "location", "venue",
+        "organisers", "scope", "topics", "keynotes", "deadlines", "fees",
+        "colocatedEvents", "officialUrl",
+      ],
+      research: [
+        "researchTitle", "authors", "affiliations", "researchQuestion", "methods",
+        "materials", "keyResults", "conclusion", "limitations", "keywords",
+        "funding", "contactInfo", "figureNotes",
+      ],
+      exhibition: [
+        "companyName", "productName", "whatItDoes", "purpose", "performance",
+        "achievements", "novelty", "applications", "technologies", "deployments",
+        "certifications", "priceAvailability", "offices", "officialUrl",
+      ],
+    };
+
+    const view = document.getElementById("view");
+    const actions = document.getElementById("actions");
+    const id = new URLSearchParams(location.search).get("id");
+
+    let entry = null;
+    let manifest = null;
+
+    start();
+
+    async function start() {
+      if (!id) return fail("No entry was named in the address.");
+
+      const [loaded, schema] = await Promise.all([loadEntry(id), loadManifest()]);
+      if (!loaded) return fail("That entry is not on this phone any more. Read the image again.");
+
+      entry = loaded;
+      manifest = schema;
+      render();
+      actions.hidden = false;
+    }
+
+    async function loadEntry(entryId) {
+      const local = localStorage.getItem(`banner:entry:${entryId}`);
+      if (local) {
+        try { return JSON.parse(local); } catch { /* fall through to the server */ }
+      }
+      const response = await fetch(`/api/banner/entries/${encodeURIComponent(entryId)}`);
+      return response.ok ? response.json() : null;
+    }
+
+    async function loadManifest() {
+      const response = await fetch("/api/banner/schema");
+      return response.ok ? response.json() : { types: {}, contacts: [], typeLabels: {} };
+    }
+
+    /* ---------- rendering ---------- */
+
+    function render() {
+      view.textContent = "";
+      view.append(header());
+
+      const fieldSpecs = orderedSpecs(manifest.types?.[entry.type] ?? [], FIELD_ORDER[entry.type] ?? []);
+      if (fieldSpecs.length > 0) {
+        view.append(section(manifest.typeLabels?.[entry.type] ?? entry.type));
+        for (const spec of fieldSpecs) {
+          view.append(fieldCard(spec, entry.fields?.[spec.key], ["fields", spec.key]));
+        }
+      }
+
+      (entry.contacts ?? []).forEach((contact, index) => {
+        view.append(section(entry.contacts.length > 1 ? `Contact ${index + 1}` : "Contact"));
+        const box = document.createElement("div");
+        box.className = "contact";
+        for (const spec of manifest.contacts ?? []) {
+          box.append(fieldCard(spec, contact[spec.key], ["contacts", index, spec.key]));
+        }
+        view.append(box);
+      });
+
+      if (entry.unreadable?.length) {
+        view.append(section("Could not be read"));
+        const list = document.createElement("div");
+        list.className = "notice";
+        list.textContent = entry.unreadable.join("\n");
+        list.style.whiteSpace = "pre-wrap";
+        view.append(list);
+      }
+
+      if (entry.tags?.length || entry.urls?.length) {
+        view.append(section("Index"));
+        const badges = document.createElement("div");
+        badges.className = "badges";
+        for (const tag of entry.tags ?? []) badges.append(badge(tag));
+        for (const url of entry.urls ?? []) badges.append(badge(url));
+        view.append(badges);
+      }
+
+      view.append(jsonBlock());
+    }
+
+    function header() {
+      const box = document.createElement("div");
+      box.className = "head";
+
+      const badges = document.createElement("div");
+      badges.className = "badges";
+      badges.append(badge(`${manifest.typeLabels?.[entry.type] ?? entry.type} · ${percent(entry.typeConfidence)}`, "type"));
+      if (entry.language) badges.append(badge(entry.language));
+      if (entry.meta?.ms) badges.append(badge(`${Math.round(entry.meta.ms / 1000)}s · ${entry.meta.images} image${entry.meta.images === 1 ? "" : "s"}`));
+      if (entry.reviewedBy === "human") badges.append(badge("checked by a person", "human"));
+
+      const title = document.createElement("h1");
+      title.textContent = entry.title ?? "(no title on the image)";
+
+      box.append(badges, title);
+
+      if (entry.org) box.append(line(entry.org, "muted"));
+      if (entry.summary) box.append(line(entry.summary, "small muted"));
+      return box;
+    }
+
+    function fieldCard(spec, field, path) {
+      const value = field?.value ?? null;
+      const empty = value === null || (Array.isArray(value) && value.length === 0);
+      const confidence = field?.confidence ?? 0;
+
+      const card = document.createElement("div");
+      card.className = "field " + (empty ? "empty" : field?.edited ? "edited" : confidence >= 0.8 ? "high" : confidence >= 0.5 ? "mid" : "low");
+
+      const label = document.createElement("div");
+      label.className = "label";
+      const name = document.createElement("span");
+      name.textContent = spec.label;
+      const conf = document.createElement("span");
+      conf.className = "conf";
+      conf.textContent = field?.edited ? "checked" : empty ? "empty" : percent(confidence);
+      label.append(name, conf);
+
+      const body = document.createElement("div");
+      body.className = "value";
+      if (empty) {
+        body.textContent = "not readable in the image";
+      } else if (Array.isArray(value)) {
+        const list = document.createElement("ul");
+        for (const item of value) {
+          const li = document.createElement("li");
+          li.textContent = item;
+          list.append(li);
+        }
+        body.append(list);
+      } else {
+        body.textContent = value;
+      }
+
+      card.append(label, body);
+
+      if (field?.sourceText) {
+        const source = document.createElement("div");
+        source.className = "src";
+        source.textContent = field.sourceText;
+        card.append(source);
+      }
+
+      card.addEventListener("click", () => edit(card, spec, field, path));
+      return card;
+    }
+
+    /* ---------- editing ---------- */
+
+    function edit(card, spec, field, path) {
+      if (card.querySelector("textarea")) return;
+
+      const current = field?.value;
+      const box = document.createElement("textarea");
+      box.value = Array.isArray(current) ? current.join("\n") : current ?? "";
+      box.placeholder = spec.multi ? "One line per item" : "What the image actually says";
+
+      const save = document.createElement("button");
+      save.className = "btn btn-primary";
+      save.type = "button";
+      save.textContent = "Save";
+
+      const cancel = document.createElement("button");
+      cancel.className = "btn btn-ghost";
+      cancel.type = "button";
+      cancel.textContent = "Cancel";
+
+      const bar = document.createElement("div");
+      bar.className = "edit-actions";
+      bar.append(save, cancel);
+
+      card.querySelector(".value").replaceChildren(box);
+      card.append(bar);
+      box.focus();
+
+      const stop = (event) => event.stopPropagation();
+      box.addEventListener("click", stop);
+
+      cancel.addEventListener("click", (event) => {
+        event.stopPropagation();
+        render();
+      });
+
+      save.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const text = box.value.trim();
+        const next = spec.multi
+          ? text.split("\n").map((line) => line.trim()).filter(Boolean)
+          : text;
+
+        const target = fieldAt(path);
+        // The person's reading wins, and sourceText stays: what was printed and
+        // what a person made of it are both worth keeping (FR-20).
+        target.value = spec.multi ? (next.length ? next : null) : (next === "" ? null : next);
+        target.confidence = target.value === null ? 0 : 1;
+        target.edited = true;
+        entry.reviewedBy = "human";
+
+        persist();
+        render();
+      });
+    }
+
+    function fieldAt(path) {
+      let node = entry;
+      for (const step of path.slice(0, -1)) node = node[step];
+      const key = path[path.length - 1];
+      if (!node[key]) node[key] = { value: null, sourceText: null, confidence: 0 };
+      return node[key];
+    }
+
+    async function persist() {
+      localStorage.setItem(`banner:entry:${entry.id}`, JSON.stringify(entry));
+    }
+
+    /* ---------- small helpers ---------- */
+
+    function orderedSpecs(specs, order) {
+      const byKey = new Map(specs.map((spec) => [spec.key, spec]));
+      const result = [];
+      for (const key of order) {
+        if (byKey.has(key)) {
+          result.push(byKey.get(key));
+          byKey.delete(key);
+        }
+      }
+      return [...result, ...byKey.values()]; // fields added today, not yet placed
+    }
+
+    function section(text) {
+      const heading = document.createElement("h2");
+      heading.className = "section";
+      heading.textContent = text;
+      return heading;
+    }
+
+    function badge(text, extra = "") {
+      const span = document.createElement("span");
+      span.className = "badge " + extra;
+      span.textContent = text;
+      return span;
+    }
+
+    function line(text, className = "") {
+      const p = document.createElement("p");
+      p.className = className;
+      p.style.margin = "6px 0 0";
+      p.textContent = text;
+      return p;
+    }
+
+    function percent(value) {
+      return `${Math.round((value ?? 0) * 100)}%`;
+    }
+
+    function jsonBlock() {
+      const details = document.createElement("details");
+      details.style.marginTop = "28px";
+
+      const summary = document.createElement("summary");
+      summary.className = "small muted";
+      summary.textContent = "Show the record as JSON";
+
+      const pre = document.createElement("pre");
+      pre.className = "src";
+      pre.style.overflowX = "auto";
+      pre.textContent = JSON.stringify(entry, null, 2);
+
+      details.append(summary, pre);
+      return details;
+    }
+
+    function fail(message) {
+      view.textContent = "";
+      const box = document.createElement("div");
+      box.className = "notice";
+      box.textContent = message;
+      view.append(box);
+      actions.hidden = false;
+    }
+  </script>
+</body>
+</html>

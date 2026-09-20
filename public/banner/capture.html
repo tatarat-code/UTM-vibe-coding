@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Banner Reader — capture</title>
+  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/banner/mobile.css">
+</head>
+<body>
+  <main class="wrap">
+    <div class="topbar">
+      <div class="brand">Banner<span>Reader</span></div>
+      <a class="small muted" href="/">Home</a>
+    </div>
+
+    <button class="shot" id="shoot" type="button">
+      <span class="shot-icon">▣</span>
+      <span class="shot-label">Take a photo</span>
+      <span class="small muted">Banner, poster, panel or business card</span>
+    </button>
+
+    <div class="row" style="margin-top:12px">
+      <button class="btn btn-ghost" id="pick" type="button">Choose from photos</button>
+      <button class="btn btn-primary" id="read" type="button" disabled>Read this</button>
+    </div>
+
+    <div class="thumbs" id="thumbs"></div>
+    <div class="progress" id="progress" hidden></div>
+    <div class="error" id="error" hidden></div>
+
+    <p class="hint">
+      Up to 4 images per record. A wide shot plus a close-up of the small print
+      reads better than one photo of everything. Images are read and then dropped —
+      nothing is stored on the server.
+    </p>
+
+    <input id="camera" type="file" accept="image/*" capture="environment" multiple hidden>
+    <input id="library" type="file" accept="image/*" multiple hidden>
+  </main>
+
+  <script type="module">
+    import { resizeImage } from "/banner/resize.js";
+
+    const MAX_IMAGES = 4;
+    const shots = [];
+
+    const el = {
+      shoot: document.getElementById("shoot"),
+      pick: document.getElementById("pick"),
+      read: document.getElementById("read"),
+      thumbs: document.getElementById("thumbs"),
+      progress: document.getElementById("progress"),
+      error: document.getElementById("error"),
+      camera: document.getElementById("camera"),
+      library: document.getElementById("library"),
+    };
+
+    el.shoot.addEventListener("click", () => el.camera.click());
+    el.pick.addEventListener("click", () => el.library.click());
+    el.camera.addEventListener("change", (event) => addFiles(event.target.files));
+    el.library.addEventListener("change", (event) => addFiles(event.target.files));
+    el.read.addEventListener("click", send);
+
+    async function addFiles(fileList) {
+      showError(null);
+      for (const file of [...fileList]) {
+        if (shots.length >= MAX_IMAGES) {
+          showError(`Up to ${MAX_IMAGES} images per record.`);
+          break;
+        }
+        try {
+          const { blob } = await resizeImage(file);
+          shots.push({ blob, url: URL.createObjectURL(blob) });
+        } catch (error) {
+          showError(error.message);
+        }
+      }
+      el.camera.value = "";
+      el.library.value = "";
+      render();
+    }
+
+    function render() {
+      el.thumbs.innerHTML = "";
+      shots.forEach((shot, index) => {
+        const box = document.createElement("div");
+        box.className = "thumb";
+
+        const image = document.createElement("img");
+        image.src = shot.url;
+        image.alt = `Image ${index + 1}`;
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.setAttribute("aria-label", `Remove image ${index + 1}`);
+        remove.innerHTML = "<span>✕</span>";
+        remove.addEventListener("click", () => {
+          URL.revokeObjectURL(shot.url);
+          shots.splice(index, 1);
+          render();
+        });
+
+        box.append(image, remove);
+        el.thumbs.append(box);
+      });
+
+      el.read.disabled = shots.length === 0;
+      el.read.textContent = shots.length > 1 ? `Read these ${shots.length}` : "Read this";
+    }
+
+    async function send() {
+      showError(null);
+      el.read.disabled = true;
+      el.shoot.disabled = true;
+      el.pick.disabled = true;
+
+      const startedAt = Date.now();
+      const stages = [
+        [0, "Uploading…"],
+        [2500, "Reading the poster…"],
+        [12000, "Organising the fields…"],
+      ];
+      const timers = stages.map(([delay, text]) =>
+        setTimeout(() => showProgress(text, startedAt), delay),
+      );
+      const tick = setInterval(() => showProgress(null, startedAt), 1000);
+
+      const form = new FormData();
+      shots.forEach((shot, index) => form.append("images", shot.blob, `image-${index + 1}.jpg`));
+
+      try {
+        const response = await fetch("/api/banner/capture", { method: "POST", body: form });
+        const payload = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          throw new Error(payload?.error ?? `The reader returned ${response.status}`);
+        }
+
+        // Keep a copy on the phone straight away, so a dropped connection on the
+        // next screen does not lose the reading.
+        localStorage.setItem(`banner:entry:${payload.id}`, JSON.stringify(payload));
+        location.href = `/banner/entry.html?id=${encodeURIComponent(payload.id)}`;
+      } catch (error) {
+        showError(error.message);
+        el.progress.hidden = true;
+      } finally {
+        timers.forEach(clearTimeout);
+        clearInterval(tick);
+        el.read.disabled = shots.length === 0;
+        el.shoot.disabled = false;
+        el.pick.disabled = false;
+      }
+    }
+
+    let stageText = "Uploading…";
+    function showProgress(text, startedAt) {
+      if (text) stageText = text;
+      const seconds = Math.round((Date.now() - startedAt) / 1000);
+      el.progress.hidden = false;
+      el.progress.textContent = `${stageText}  ${seconds}s`;
+    }
+
+    function showError(message) {
+      el.error.hidden = !message;
+      el.error.textContent = message ?? "";
+    }
+
+    render();
+  </script>
+</body>
+</html>
