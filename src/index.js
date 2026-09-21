@@ -11,6 +11,8 @@
  */
 
 import { handleLiveSession } from "./live.js";
+import { handleGrade, rubric } from "./grade.js";
+import { handleSubmissions } from "./submissions.js";
 import { handleCapture } from "./banner/capture.js";
 import { handleEntries } from "./banner/entries.js";
 import { handleExport } from "./banner/exporter.js";
@@ -31,6 +33,19 @@ export default {
     // Step 1 — voice conversation. Mints a short-lived token for the browser.
     if (url.pathname === "/api/live/session") {
       return handleLiveSession(request, env);
+    }
+
+    // Step 2 — grading against the rubric in samples/rubric.json.
+    if (url.pathname === "/api/grade") {
+      return handleGrade(request, env);
+    }
+
+    if (url.pathname === "/api/rubric") {
+      return json(rubric);
+    }
+
+    if (url.pathname === "/api/submissions" || url.pathname.startsWith("/api/submissions/")) {
+      return handleSubmissions(request, env, url);
     }
 
     // Banner Reader. Everything for it lives in src/banner/.

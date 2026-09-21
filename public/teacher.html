@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Grading — UTM CEE</title>
+  <link rel="stylesheet" href="/app.css">
+  <style>
+    main { max-width: 1000px; margin: 0 auto; padding: 40px 20px 100px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 24px; }
+    .brand { font-weight: 700; }
+    .brand span { color: var(--accent); }
+    .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: .78rem; }
+    h1 { font-size: clamp(1.8rem, 4.5vw, 2.6rem); margin: 8px 0 10px; line-height: 1.15; }
+    .lead { color: var(--muted); margin: 0 0 28px; max-width: 680px; }
+
+    h2.section { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); margin: 36px 0 12px; }
+
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
+    textarea {
+      width: 100%; min-height: 220px; padding: 14px; border-radius: 12px;
+      border: 1px solid var(--border); background: #0b1220; color: var(--text);
+      font: inherit; font-size: 16px; line-height: 1.55; resize: vertical;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+    .row .btn { flex: 1 1 200px; }
+
+    .subs { display: flex; flex-direction: column; gap: 8px; }
+    .sub { display: flex; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+    .sub button { flex: 1; text-align: left; background: transparent; border: none; color: inherit; font: inherit; cursor: pointer; min-height: 44px; }
+    .sub .who { font-weight: 600; }
+    .sub .meta { font-size: .8rem; color: var(--muted); }
+    .sub .state { font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+    .sub .state.released { color: var(--ok); }
+
+    .total {
+      display: flex; flex-wrap: wrap; align-items: baseline; gap: 16px;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+      padding: 20px 22px; margin-top: 8px;
+    }
+    .total b { font-size: 3rem; line-height: 1; font-variant-numeric: tabular-nums; }
+    .total .tag { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--warn); color: var(--warn); font-size: .8rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .total.confirmed .tag { border-color: var(--ok); color: var(--ok); }
+    .total .of { color: var(--muted); font-size: 1rem; }
+
+    .crit { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 14px; }
+    .crit header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: baseline; }
+    .crit h3 { margin: 0; font-size: 1.1rem; }
+    .crit .weight { font-size: .82rem; color: var(--muted); }
+    .crit .desc { margin: 6px 0 14px; font-size: .9rem; color: var(--muted); }
+
+    .levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+    .level {
+      text-align: left; background: #0b1220; border: 1px solid var(--border); border-radius: 12px;
+      padding: 12px 14px; color: var(--muted); font: inherit; font-size: .85rem; cursor: pointer; min-height: 44px;
+    }
+    .level .head { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; color: var(--text); font-size: .9rem; }
+    .level[aria-pressed="true"] { border-color: var(--accent); background: #243349; color: var(--text); }
+    .level[aria-pressed="true"] .head { color: var(--accent); }
+
+    .evidence { margin-top: 14px; border-left: 3px solid var(--ok); background: #0b1220; border-radius: 0 12px 12px 0; padding: 14px 16px; }
+    .evidence .cap { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; }
+    .evidence q { display: block; margin-top: 6px; font-style: italic; }
+    .evidence.missing { border-left-color: var(--muted); }
+    .evidence.unverified { border-left-color: var(--bad); }
+    .flag { color: var(--bad); }
+    .flag.ok { color: var(--muted); }
+
+    .comment { margin: 12px 0 0; font-size: .92rem; }
+    .changed { margin-top: 10px; font-size: .8rem; color: var(--accent); font-weight: 600; }
+
+    .summary { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; font-size: .95rem; }
+    .notice { padding: 14px 16px; border-radius: 12px; border: 1px dashed var(--border); color: var(--muted); font-size: .9rem; }
+    .error { margin-top: 14px; padding: 14px 16px; border-radius: 12px; background: #2a1414; border: 1px solid var(--bad); }
+    .hint { color: var(--muted); font-size: .86rem; margin-top: 18px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="topbar">
+      <div class="brand">UTM<span> CEE</span></div>
+      <a class="small muted" href="/">Home</a>
+    </div>
+
+    <div class="eyebrow">Step 2 · instructor</div>
+    <h1>Grading</h1>
+    <p class="lead">
+      The AI proposes a level for each criterion and must quote the submission for it.
+      You read the quotation, change what you disagree with, and decide the grade. Until
+      you press Confirm, nothing here is a grade — it is a draft.
+    </p>
+
+    <h2 class="section">Submissions</h2>
+    <div class="subs" id="subs"><div class="notice">Loading…</div></div>
+
+    <h2 class="section">Submission text</h2>
+    <div class="panel">
+      <textarea id="text" placeholder="Paste a student submission here, or load one from the list above."></textarea>
+      <div class="row">
+        <button class="btn btn-primary" id="grade" type="button">Grade with AI</button>
+        <button class="btn btn-ghost" id="clear" type="button">Clear</button>
+      </div>
+      <div class="error" id="error" hidden></div>
+    </div>
+
+    <div id="result" hidden>
+      <h2 class="section">Draft grade</h2>
+      <div class="total" id="total">
+        <b id="totalValue">—</b>
+        <span class="of" id="totalOf"></span>
+        <span class="tag" id="totalTag">AI draft</span>
+      </div>
+
+      <div id="criteria" style="margin-top:14px"></div>
+
+      <h2 class="section">Feedback to the student</h2>
+      <div class="summary" id="summary"></div>
+
+      <div class="row">
+        <button class="btn btn-primary" id="confirm" type="button">Confirm grade</button>
+        <button class="btn btn-ghost" id="release" type="button" hidden>Release to the student</button>
+      </div>
+      <p class="hint" id="releaseHint"></p>
+    </div>
+  </main>
+
+  <script type="module">
+    const el = {
+      subs: document.getElementById("subs"),
+      text: document.getElementById("text"),
+      grade: document.getElementById("grade"),
+      clear: document.getElementById("clear"),
+      error: document.getElementById("error"),
+      result: document.getElementById("result"),
+      total: document.getElementById("total"),
+      totalValue: document.getElementById("totalValue"),
+      totalOf: document.getElementById("totalOf"),
+      totalTag: document.getElementById("totalTag"),
+      criteria: document.getElementById("criteria"),
+      summary: document.getElementById("summary"),
+      confirm: document.getElementById("confirm"),
+      release: document.getElementById("release"),
+      releaseHint: document.getElementById("releaseHint"),
+    };
+
+    let rubric = null;
+    let grade = null;          // { items, total, summary, ... }
+    let aiScores = new Map();  // criterionId -> the level the AI chose
+    let confirmed = false;
+    let submissionId = null;   // set when the text came from a saved submission
+
+    start();
+
+    async function start() {
+      rubric = await fetch("/api/rubric").then((response) => response.json());
+      loadSubmissions();
+      el.grade.addEventListener("click", runGrading);
+      el.clear.addEventListener("click", reset);
+      el.confirm.addEventListener("click", confirmGrade);
+      el.release.addEventListener("click", release);
+    }
+
+    /* ---------- submissions ---------- */
+
+    async function loadSubmissions() {
+      try {
+        const response = await fetch("/api/submissions");
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error ?? `The list returned ${response.status}`);
+
+        el.subs.textContent = "";
+        if (payload.items.length === 0) {
+          el.subs.innerHTML = '<div class="notice">Nothing submitted yet. Students submit at <a href="/submit.html">/submit.html</a>.</div>';
+          return;
+        }
+        for (const row of payload.items) el.subs.append(submissionRow(row));
+      } catch (error) {
+        el.subs.innerHTML = `<div class="notice">${error.message}</div>`;
+      }
+    }
+
+    function submissionRow(row) {
+      const box = document.createElement("div");
+      box.className = "sub";
+
+      const open = document.createElement("button");
+      open.type = "button";
+      const who = document.createElement("div");
+      who.className = "who";
+      who.textContent = row.studentName || "(no name)";
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = `${row.id} · ${new Date(row.submittedAt).toLocaleString()} · ${row.words} words`;
+      open.append(who, meta);
+      open.addEventListener("click", () => loadSubmission(row.id));
+
+      const state = document.createElement("span");
+      state.className = `state ${row.status === "released" ? "released" : ""}`;
+      state.textContent = row.status;
+
+      box.append(open, state);
+      return box;
+    }
+
+    async function loadSubmission(id) {
+      showError(null);
+      const response = await fetch(`/api/submissions/${encodeURIComponent(id)}`);
+      const payload = await response.json();
+      if (!response.ok) return showError(payload?.error ?? "That submission could not be loaded");
+
+      submissionId = id;
+      el.text.value = payload.text;
+      reset({ keepText: true });
+      el.releaseHint.textContent = `Loaded ${id} — ${payload.studentName}.`;
+      window.scrollTo({ top: el.text.offsetTop - 80, behavior: "smooth" });
+    }
+
+    /* ---------- grading ---------- */
+
+    async function runGrading() {
+      showError(null);
+      const text = el.text.value.trim();
+      if (text.length < 40) return showError("Paste the submission text first.");
+
+      el.grade.disabled = true;
+      el.grade.textContent = "Reading the submission…";
+
+      try {
+        const response = submissionId
+          ? await fetch(`/api/submissions/${encodeURIComponent(submissionId)}/grade`, { method: "POST" })
+          : await fetch("/api/grade", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ text }),
+            });
+
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error ?? `Grading returned ${response.status}`);
+
+        grade = payload;
+        confirmed = false;
+        aiScores = new Map(grade.items.map((item) => [item.criterionId, item.score]));
+        render();
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        el.grade.disabled = false;
+        el.grade.textContent = "Grade with AI";
+      }
+    }
+
+    function render() {
+      el.result.hidden = false;
+      el.criteria.textContent = "";
+
+      for (const criterion of rubric.criteria) {
+        const item = grade.items.find((entry) => entry.criterionId === criterion.id);
+        el.criteria.append(criterionCard(criterion, item));
+      }
+
+      el.summary.textContent = grade.summary || "(no summary returned)";
+      el.totalOf.textContent = `out of ${rubric.scoring.maxTotal}`;
+      el.release.hidden = submissionId === null;
+      updateTotal();
+    }
+
+    function criterionCard(criterion, item) {
+      const card = document.createElement("div");
+      card.className = "crit";
+
+      const head = document.createElement("header");
+      const title = document.createElement("h3");
+      title.textContent = `${criterion.id} · ${criterion.name}`;
+      const weight = document.createElement("span");
+      weight.className = "weight";
+      weight.textContent = `weight ${criterion.weight}`;
+      head.append(title, weight);
+
+      const desc = document.createElement("p");
+      desc.className = "desc";
+      desc.textContent = criterion.description;
+
+      const levels = document.createElement("div");
+      levels.className = "levels";
+      for (const level of [...criterion.levels].sort((a, b) => b.score - a.score)) {
+        levels.append(levelButton(criterion, item, level, card));
+      }
+
+      card.append(head, desc, levels, evidenceBlock(item));
+
+      if (item.comment) {
+        const comment = document.createElement("p");
+        comment.className = "comment";
+        comment.textContent = item.comment;
+        card.append(comment);
+      }
+
+      const changed = document.createElement("p");
+      changed.className = "changed";
+      changed.hidden = true;
+      card.append(changed);
+      card.dataset.criterion = criterion.id;
+
+      return card;
+    }
+
+    function levelButton(criterion, item, level, card) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "level";
+      button.setAttribute("aria-pressed", String(level.score === item.score));
+
+      const head = document.createElement("div");
+      head.className = "head";
+      const label = document.createElement("span");
+      label.textContent = level.label;
+      const score = document.createElement("span");
+      score.textContent = level.score;
+      head.append(label, score);
+
+      const descriptor = document.createElement("div");
+      descriptor.textContent = level.descriptor;
+
+      button.append(head, descriptor);
+
+      button.addEventListener("click", () => {
+        item.score = level.score;
+        for (const sibling of card.querySelectorAll(".level")) {
+          sibling.setAttribute("aria-pressed", "false");
+        }
+        button.setAttribute("aria-pressed", "true");
+
+        const changed = card.querySelector(".changed");
+        const wasAi = aiScores.get(criterion.id);
+        changed.hidden = level.score === wasAi;
+        changed.textContent = `Changed by the instructor: ${wasAi} → ${level.score}`;
+
+        updateTotal();
+      });
+
+      return button;
+    }
+
+    function evidenceBlock(item) {
+      const box = document.createElement("div");
+      box.className = "evidence";
+
+      const cap = document.createElement("div");
+      cap.className = "cap";
+      const left = document.createElement("span");
+      left.textContent = "Quoted from the submission";
+      const right = document.createElement("span");
+
+      if (item.evidence === null) {
+        box.classList.add("missing");
+        right.className = "flag ok";
+        right.textContent = "nothing in the paper bears on this";
+      } else if (item.quoteFound === false) {
+        box.classList.add("unverified");
+        right.className = "flag";
+        right.textContent = "not found in the submission — check it";
+      } else if (item.quoteTrimmed) {
+        right.className = "flag ok";
+        right.textContent = "trimmed to the part that is verbatim";
+      } else {
+        right.className = "flag ok";
+        right.textContent = "found in the submission";
+      }
+
+      cap.append(left, right);
+      box.append(cap);
+
+      const quote = document.createElement("q");
+      quote.textContent = item.evidence ?? "No passage was offered for this criterion.";
+      box.append(quote);
+
+      return box;
+    }
+
+    function updateTotal() {
+      let total = 0;
+      for (const criterion of rubric.criteria) {
+        const item = grade.items.find((entry) => entry.criterionId === criterion.id);
+        total += (criterion.weight * item.score) / rubric.scale.max;
+      }
+      grade.total = Math.round(total * 10) / 10;
+      el.totalValue.textContent = grade.total;
+
+      const touched = grade.items.some((item) => item.score !== aiScores.get(item.criterionId));
+      el.totalTag.textContent = confirmed
+        ? "Confirmed by instructor"
+        : touched
+          ? "AI draft, edited"
+          : "AI draft";
+      el.total.classList.toggle("confirmed", confirmed);
+    }
+
+    function confirmGrade() {
+      confirmed = true;
+      updateTotal();
+      el.confirm.textContent = "Confirmed";
+      el.confirm.disabled = true;
+    }
+
+    async function release() {
+      if (!submissionId) return;
+      if (!confirmed) return showError("Confirm the grade before releasing it.");
+
+      el.release.disabled = true;
+      try {
+        const response = await fetch(`/api/submissions/${encodeURIComponent(submissionId)}/release`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ items: grade.items, total: grade.total, summary: grade.summary }),
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error ?? `Releasing returned ${response.status}`);
+
+        el.releaseHint.innerHTML = `Released. The student sees it at <a href="/result.html?id=${encodeURIComponent(submissionId)}">/result.html?id=${submissionId}</a>`;
+        loadSubmissions();
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        el.release.disabled = false;
+      }
+    }
+
+    /* ---------- helpers ---------- */
+
+    function reset({ keepText = false } = {}) {
+      if (!keepText) {
+        el.text.value = "";
+        submissionId = null;
+        el.releaseHint.textContent = "";
+      }
+      grade = null;
+      confirmed = false;
+      el.result.hidden = true;
+      el.confirm.disabled = false;
+      el.confirm.textContent = "Confirm grade";
+      showError(null);
+    }
+
+    function showError(message) {
+      el.error.hidden = !message;
+      el.error.textContent = message ?? "";
+    }
+  </script>
+</body>
+</html>

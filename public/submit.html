@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Submit your assignment — UTM CEE</title>
+  <link rel="stylesheet" href="/app.css">
+  <style>
+    main { max-width: 820px; margin: 0 auto; padding: 40px 20px 80px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 24px; }
+    .brand { font-weight: 700; }
+    .brand span { color: var(--accent); }
+    .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: .78rem; }
+    h1 { font-size: clamp(1.8rem, 4.5vw, 2.6rem); margin: 8px 0 10px; line-height: 1.15; }
+    .lead { color: var(--muted); margin: 0 0 24px; }
+    label { display: block; font-size: .85rem; color: var(--muted); margin: 0 0 6px; }
+    input, textarea {
+      width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border);
+      background: #0b1220; color: var(--text); font: inherit; font-size: 16px;
+    }
+    input { min-height: 48px; }
+    textarea { min-height: 280px; line-height: 1.55; resize: vertical; margin-bottom: 4px; }
+    .field { margin-bottom: 18px; }
+    .count { font-size: .8rem; color: var(--muted); text-align: right; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .row .btn { flex: 1 1 200px; }
+    .done { margin-top: 20px; padding: 18px 20px; border-radius: 14px; background: var(--panel); border: 1px solid var(--ok); }
+    .done code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); }
+    .error { margin-top: 16px; padding: 14px 16px; border-radius: 12px; background: #2a1414; border: 1px solid var(--bad); }
+    .hint { margin-top: 24px; color: var(--muted); font-size: .86rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="topbar">
+      <div class="brand">UTM<span> CEE</span></div>
+      <a class="small muted" href="/tutorial.html">The assignment</a>
+    </div>
+
+    <div class="eyebrow">Step 2 · student</div>
+    <h1>Submit your assignment</h1>
+    <p class="lead">
+      UJT 1333, Week 12. Paste the text of your paper. You will get a submission id —
+      keep it: that is how you read the grade when it is returned.
+    </p>
+
+    <form id="form">
+      <div class="field">
+        <label for="name">Your name</label>
+        <input id="name" type="text" autocomplete="name" placeholder="Family name, given name" required>
+      </div>
+
+      <div class="field">
+        <label for="text">Your submission</label>
+        <textarea id="text" placeholder="Paste the full text of your paper here." required></textarea>
+        <div class="count" id="count">0 words</div>
+      </div>
+
+      <div class="row">
+        <button class="btn btn-primary" id="send" type="submit">Submit</button>
+        <a class="btn btn-ghost" href="/tutorial.html">Read the rubric first</a>
+      </div>
+    </form>
+
+    <div class="error" id="error" hidden></div>
+    <div class="done" id="done" hidden></div>
+
+    <p class="hint">
+      Your text is stored so that it can be graded and returned; nothing else about you is.
+      The grade is drafted by an AI and decided by the instructor.
+    </p>
+  </main>
+
+  <script type="module">
+    const el = {
+      form: document.getElementById("form"),
+      name: document.getElementById("name"),
+      text: document.getElementById("text"),
+      count: document.getElementById("count"),
+      send: document.getElementById("send"),
+      error: document.getElementById("error"),
+      done: document.getElementById("done"),
+    };
+
+    el.text.addEventListener("input", () => {
+      const words = el.text.value.trim().split(/\s+/).filter(Boolean).length;
+      el.count.textContent = `${words} word${words === 1 ? "" : "s"}`;
+    });
+
+    el.form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      el.error.hidden = true;
+      el.send.disabled = true;
+      el.send.textContent = "Submitting…";
+
+      try {
+        const response = await fetch("/api/submissions", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ studentName: el.name.value, text: el.text.value }),
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error ?? `The server returned ${response.status}`);
+
+        el.form.hidden = true;
+        el.done.hidden = false;
+        el.done.innerHTML =
+          `<p style="margin:0 0 10px">Received. Your submission id is <code>${payload.id}</code>.</p>` +
+          `<p style="margin:0">Read your grade at <a href="/result.html?id=${encodeURIComponent(payload.id)}">/result.html?id=${payload.id}</a> once the instructor returns it.</p>`;
+      } catch (error) {
+        el.error.hidden = false;
+        el.error.textContent = error.message;
+      } finally {
+        el.send.disabled = false;
+        el.send.textContent = "Submit";
+      }
+    });
+  </script>
+</body>
+</html>

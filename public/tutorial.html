@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>The assignment and its rubric — UTM CEE</title>
+  <link rel="stylesheet" href="/app.css">
+  <style>
+    main { max-width: 960px; margin: 0 auto; padding: 40px 20px 90px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 24px; }
+    .brand { font-weight: 700; }
+    .brand span { color: var(--accent); }
+    .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: .78rem; }
+    h1 { font-size: clamp(1.8rem, 4.5vw, 2.6rem); margin: 8px 0 10px; line-height: 1.15; }
+    .lead { color: var(--muted); margin: 0 0 26px; max-width: 680px; }
+
+    figure { margin: 0 0 28px; }
+    figure img { width: 100%; height: auto; border-radius: 16px; border: 1px solid var(--border); display: block; }
+    figcaption { margin-top: 8px; font-size: .82rem; color: var(--muted); }
+
+    h2.section { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); margin: 34px 0 12px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+    .card { display: block; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px; color: inherit; text-decoration: none; }
+    .card:hover { background: #243349; }
+    .card h3 { margin: 0 0 6px; font-size: 1rem; }
+    .card p { margin: 0; font-size: .88rem; color: var(--muted); }
+    .card .kind { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+    .step { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 14px; padding: 18px; }
+    .step h3 { margin: 0 0 6px; font-size: .98rem; }
+    .step p { margin: 0; font-size: .88rem; color: var(--muted); }
+
+    .crit { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; margin-bottom: 10px; }
+    .crit header { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+    .crit h3 { margin: 0; font-size: 1rem; }
+    .crit .weight { font-size: .8rem; color: var(--muted); }
+    .crit p { margin: 6px 0 0; font-size: .9rem; color: var(--muted); }
+
+    .row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
+    .row .btn { flex: 1 1 220px; }
+    .hint { margin-top: 26px; color: var(--muted); font-size: .86rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="topbar">
+      <div class="brand">UTM<span> CEE</span></div>
+      <a class="small muted" href="/">Home</a>
+    </div>
+
+    <div class="eyebrow">UJT 1333 · Week 12</div>
+    <h1 id="title">The assignment and its rubric</h1>
+    <p class="lead" id="assignment">Loading the rubric…</p>
+
+    <figure>
+      <img src="/samples/rubric_infographic.png" alt="One-page infographic of the Week 12 rubric: three criteria, their weights, and what each level requires.">
+      <figcaption>The rubric on one page. It was written by a person, before any grading was automated.</figcaption>
+    </figure>
+
+    <h2 class="section">The material</h2>
+    <div class="grid">
+      <a class="card" href="/samples/rubric.pdf">
+        <div class="kind">PDF · rubric</div>
+        <h3>The full rubric</h3>
+        <p>Three criteria, three levels each, with the conditions for every level and how the total is computed.</p>
+      </a>
+      <a class="card" href="/samples/submission_strong.pdf">
+        <div class="kind">PDF · sample A</div>
+        <h3>A strong submission</h3>
+        <p>Positions the programme, analyses it from several managerial perspectives, and recommends concrete measures.</p>
+      </a>
+      <a class="card" href="/samples/submission_weak.pdf">
+        <div class="kind">PDF · sample B</div>
+        <h3>A weak submission</h3>
+        <p>Describes the topic in general terms, argues one side only, and ends with advice that anyone could have written.</p>
+      </a>
+    </div>
+
+    <h2 class="section">How this is graded</h2>
+    <div class="steps">
+      <div class="step">
+        <h3>The rubric is fixed</h3>
+        <p>The criteria, the levels and the weights come from the course, not from the model. The AI cannot add or soften a criterion.</p>
+      </div>
+      <div class="step">
+        <h3>The AI drafts, and must quote</h3>
+        <p>For every criterion it proposes a level and quotes the passage of your paper it relied on. No quotation, no level.</p>
+      </div>
+      <div class="step">
+        <h3>The instructor decides</h3>
+        <p>The instructor reads each quotation against your paper, changes any level they disagree with, and only then confirms the grade.</p>
+      </div>
+      <div class="step">
+        <h3>You see the evidence too</h3>
+        <p>The returned grade shows the same quotations, so you can see what the level was awarded on — and argue with it.</p>
+      </div>
+    </div>
+
+    <h2 class="section">The criteria</h2>
+    <div id="criteria"></div>
+
+    <div class="row">
+      <a class="btn btn-primary" href="/submit.html">Submit your assignment</a>
+      <a class="btn btn-ghost" href="/teacher.html">Instructor's grading screen</a>
+    </div>
+
+    <p class="hint">
+      A quoted passage is what makes an AI grade checkable. It is also what makes a wrong
+      one visible — which is the point.
+    </p>
+  </main>
+
+  <script type="module">
+    const rubric = await fetch("/api/rubric").then((response) => response.json()).catch(() => null);
+    if (rubric) {
+      document.getElementById("title").textContent = rubric.title;
+      document.getElementById("assignment").textContent = rubric.assignment;
+
+      const list = document.getElementById("criteria");
+      for (const criterion of rubric.criteria) {
+        const card = document.createElement("div");
+        card.className = "crit";
+
+        const head = document.createElement("header");
+        const title = document.createElement("h3");
+        title.textContent = `${criterion.id} · ${criterion.name}`;
+        const weight = document.createElement("span");
+        weight.className = "weight";
+        weight.textContent = `weight ${criterion.weight} · ${criterion.cloRef ?? ""}`;
+        head.append(title, weight);
+
+        const description = document.createElement("p");
+        description.textContent = criterion.description;
+
+        card.append(head, description);
+        list.append(card);
+      }
+    }
+  </script>
+</body>
+</html>
