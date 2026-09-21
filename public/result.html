@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Your grade — UTM CEE</title>
+  <link rel="stylesheet" href="/app.css">
+  <style>
+    main { max-width: 900px; margin: 0 auto; padding: 40px 20px 80px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 24px; }
+    .brand { font-weight: 700; }
+    .brand span { color: var(--accent); }
+    .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: .78rem; }
+    h1 { font-size: clamp(1.8rem, 4.5vw, 2.6rem); margin: 8px 0 10px; line-height: 1.15; }
+
+    .total { display: flex; flex-wrap: wrap; align-items: baseline; gap: 16px; background: var(--panel); border: 1px solid var(--ok); border-radius: 16px; padding: 22px; margin: 20px 0 8px; }
+    .total b { font-size: 3.2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+    .total .of { color: var(--muted); }
+    .total .tag { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--ok); color: var(--ok); font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+
+    .crit { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 14px; }
+    .crit header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: baseline; }
+    .crit h3 { margin: 0; font-size: 1.05rem; }
+    .crit .awarded { font-size: .82rem; color: var(--accent); font-weight: 700; }
+    .crit .descriptor { margin: 10px 0 0; font-size: .92rem; color: var(--muted); }
+    .evidence { margin-top: 14px; border-left: 3px solid var(--ok); background: #0b1220; border-radius: 0 12px 12px 0; padding: 14px 16px; }
+    .evidence .cap { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .evidence q { display: block; margin-top: 6px; font-style: italic; }
+    .comment { margin: 12px 0 0; font-size: .92rem; }
+
+    .summary { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; font-size: .95rem; }
+    h2.section { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); margin: 32px 0 12px; }
+    .notice { padding: 16px 18px; border-radius: 14px; border: 1px dashed var(--border); color: var(--muted); }
+    .hint { margin-top: 26px; color: var(--muted); font-size: .86rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="topbar">
+      <div class="brand">UTM<span> CEE</span></div>
+      <a class="small muted" href="/tutorial.html">The assignment</a>
+    </div>
+
+    <div class="eyebrow">Step 2 · returned work</div>
+    <h1>Your grade</h1>
+
+    <div id="view"><div class="notice">Loading…</div></div>
+
+    <p class="hint">
+      Each level is shown with the passage from your own paper that it was awarded on.
+      If you think a passage was read wrongly, that is the thing to bring to your instructor.
+    </p>
+  </main>
+
+  <script type="module">
+    const view = document.getElementById("view");
+    const id = new URLSearchParams(location.search).get("id");
+
+    start();
+
+    async function start() {
+      if (!id) return notice("No submission id in the address. Use the link you were given when you submitted.");
+
+      let payload;
+      try {
+        const response = await fetch(`/api/submissions/${encodeURIComponent(id)}`);
+        payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error ?? `The server returned ${response.status}`);
+      } catch (error) {
+        return notice(error.message);
+      }
+
+      if (payload.status !== "released" || !payload.grade) {
+        return notice(`Not yet returned. Submitted ${new Date(payload.submittedAt).toLocaleString()} · ${payload.words} words.`);
+      }
+
+      render(payload);
+    }
+
+    function render(payload) {
+      const { grade, rubric } = payload;
+      view.textContent = "";
+
+      const total = document.createElement("div");
+      total.className = "total";
+      total.innerHTML =
+        `<b>${grade.total}</b><span class="of">out of ${grade.maxTotal}</span>` +
+        `<span class="tag">Confirmed by instructor</span>`;
+      view.append(total);
+
+      const who = document.createElement("p");
+      who.className = "small muted";
+      who.textContent = `${payload.studentName} · ${payload.id} · returned ${new Date(grade.releasedAt).toLocaleString()}`;
+      view.append(who);
+
+      view.append(section("By criterion"));
+
+      for (const criterion of rubric.criteria) {
+        const item = grade.items.find((entry) => entry.criterionId === criterion.id);
+        if (!item) continue;
+        const level = criterion.levels.find((entry) => entry.score === item.score);
+
+        const card = document.createElement("div");
+        card.className = "crit";
+
+        const head = document.createElement("header");
+        const title = document.createElement("h3");
+        title.textContent = `${criterion.id} · ${criterion.name}`;
+        const awarded = document.createElement("span");
+        awarded.className = "awarded";
+        awarded.textContent = `${level?.label ?? item.score} (${item.score}/${rubric.scale.max}) · weight ${criterion.weight}`;
+        head.append(title, awarded);
+        card.append(head);
+
+        if (level?.descriptor) {
+          const descriptor = document.createElement("p");
+          descriptor.className = "descriptor";
+          descriptor.textContent = level.descriptor;
+          card.append(descriptor);
+        }
+
+        if (item.evidence) {
+          const evidence = document.createElement("div");
+          evidence.className = "evidence";
+          const cap = document.createElement("div");
+          cap.className = "cap";
+          cap.textContent = "From your submission";
+          const quote = document.createElement("q");
+          quote.textContent = item.evidence;
+          evidence.append(cap, quote);
+          card.append(evidence);
+        }
+
+        if (item.comment) {
+          const comment = document.createElement("p");
+          comment.className = "comment";
+          comment.textContent = item.comment;
+          card.append(comment);
+        }
+
+        view.append(card);
+      }
+
+      if (grade.summary) {
+        view.append(section("Overall"));
+        const summary = document.createElement("div");
+        summary.className = "summary";
+        summary.textContent = grade.summary;
+        view.append(summary);
+      }
+    }
+
+    function section(text) {
+      const heading = document.createElement("h2");
+      heading.className = "section";
+      heading.textContent = text;
+      return heading;
+    }
+
+    function notice(message) {
+      view.textContent = "";
+      const box = document.createElement("div");
+      box.className = "notice";
+      box.textContent = message;
+      view.append(box);
+    }
+  </script>
+</body>
+</html>

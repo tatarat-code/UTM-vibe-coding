@@ -6,10 +6,12 @@
  *
  * Roadmap for the lecture (each step is added live with Claude Code):
  *   Banner Reader — /api/banner/* : photo of a poster or banner -> structured record
- *   Step 2 — /api/rubric    : rubric authoring assistant
- *   Step 3 — /api/grade     : rubric-based grading of submissions
+ *   Step 2 — /api/grade, /api/submissions : rubric-based grading, submit and return
+ *   Step 1 — /api/live/session : voice conversation (added live during the lecture)
  */
 
+import { handleGrade, rubric } from "./grade.js";
+import { handleSubmissions } from "./submissions.js";
 import { handleCapture } from "./banner/capture.js";
 import { handleEntries } from "./banner/entries.js";
 import { handleExport } from "./banner/exporter.js";
@@ -25,6 +27,19 @@ export default {
         service: "utm-vibe-coding",
         time: new Date().toISOString(),
       });
+    }
+
+    // Step 2 — grading against the rubric in samples/rubric.json.
+    if (url.pathname === "/api/grade") {
+      return handleGrade(request, env);
+    }
+
+    if (url.pathname === "/api/rubric") {
+      return json(rubric);
+    }
+
+    if (url.pathname === "/api/submissions" || url.pathname.startsWith("/api/submissions/")) {
+      return handleSubmissions(request, env, url);
     }
 
     // Banner Reader. Everything for it lives in src/banner/.
